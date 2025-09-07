@@ -1,4 +1,3 @@
-# indeed_crawler.py
 import re
 import sqlite3
 import datetime
