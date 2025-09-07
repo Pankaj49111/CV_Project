@@ -1,4 +1,4 @@
-# crawler.py
+# indeed_crawler.py
 import re
 import sqlite3
 import datetime
@@ -15,7 +15,7 @@ def clear_jobs_table():
     import sqlite3
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("""DROP TABLE IF EXISTS jobs""")  # or DROP TABLE if you want to recreate later
+    cursor.execute("""DROP TABLE IF EXISTS indeed_jobs""")  # or DROP TABLE if you want to recreate later
     conn.commit()
     conn.close()
 
@@ -26,7 +26,7 @@ def ensure_jobs_table():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
-        CREATE TABLE IF NOT EXISTS jobs (
+        CREATE TABLE IF NOT EXISTS indeed_jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT,
             company TEXT,
@@ -39,7 +39,7 @@ def ensure_jobs_table():
         )
     """)
     # Ensure columns exist (for older DBs)
-    c.execute("PRAGMA table_info(jobs)")
+    c.execute("PRAGMA table_info(indeed_jobs)")
     cols = {row[1] for row in c.fetchall()}
     cols_needed = {
         "salary_text": "TEXT",
@@ -50,7 +50,7 @@ def ensure_jobs_table():
     for col, typ in cols_needed.items():
         if col not in cols:
             try:
-                c.execute(f"ALTER TABLE jobs ADD COLUMN {col} {typ}")
+                c.execute(f"ALTER TABLE indeed_jobs ADD COLUMN {col} {typ}")
             except sqlite3.OperationalError:
                 pass
     conn.commit()
@@ -62,7 +62,7 @@ def save_jobs_to_db(jobs):
     c = conn.cursor()
     for job in jobs:
         c.execute("""
-            INSERT INTO jobs (title, company, url, date_posted, city, salary_text, salary_min_inr, is_senior)
+            INSERT INTO indeed_jobs (title, company, url, date_posted, city, salary_text, salary_min_inr, is_senior)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             job.get("title", "N/A"),
@@ -410,22 +410,31 @@ def crawl_indeed(query="Senior Software Engineer",
     print(f"\n✅ Saved {len(collected)} jobs to SQLite (filtered by salary_min={threshold}).")
     return collected
 
-# -----------------------------
-# CLI
-# -----------------------------
-if __name__ == "__main__":
+
+def main(arg_list=None):
     clear_jobs_table()
+
     parser = argparse.ArgumentParser(description="Indeed India crawler with pagination and salary filter.")
     parser.add_argument("--query", default="Java Developer", help="Search keywords")
     parser.add_argument("--location", default="India", help="Location (keep 'India' for all-India)")
     parser.add_argument("--limit", type=int, default=50, help="Target number of jobs to fetch")
     parser.add_argument("--salary-min", default='₹32,50,000',
                         help="Minimum starting salary (e.g., 3200000, '₹32,50,000', '32 LPA')")
-    args = parser.parse_args()
 
-    crawl_indeed(
+    if arg_list is not None:
+        args = parser.parse_args(arg_list)
+    else:
+        args = parser.parse_args()
+
+    results = crawl_indeed(
         query=args.query,
         location=args.location,
         limit=args.limit,
         salary_min=args.salary_min
     )
+
+    return results
+
+
+if __name__ == "__main__":
+    main()

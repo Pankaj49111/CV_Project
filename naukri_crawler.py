@@ -7,16 +7,26 @@ import argparse
 from typing import Optional
 from urllib.parse import urlencode, quote
 
-DB_PATH = "naukri_job.db"
+DB_PATH = "career_assistant.db"
 
 # -------------------------
 # DB helpers
 # -------------------------
+
+def clear_jobs_table():
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""DROP TABLE IF EXISTS naukri_jobs""")  # or DROP TABLE if you want to recreate later
+    conn.commit()
+    conn.close()
+
+
 def ensure_jobs_table():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
-        CREATE TABLE IF NOT EXISTS jobs (
+        CREATE TABLE IF NOT EXISTS naukri_jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT,
             company TEXT,
@@ -40,7 +50,7 @@ def save_jobs_to_db(jobs):
     for job in jobs:
         try:
             c.execute("""
-                INSERT OR IGNORE INTO jobs
+                INSERT OR IGNORE INTO naukri_jobs
                 (title, company, url, date_posted, city, salary_text, salary_min_inr, experience_years, is_senior, source)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
@@ -267,10 +277,9 @@ def crawl_naukri(keyword="java developer, spring boot",
     print(f"\n🎯 Finished. Saved {len(jobs)} jobs to DB ({DB_PATH}).")
     return jobs
 
-# -------------------------
-# CLI
-# -------------------------
-if __name__ == "__main__":
+
+def main(arg_list=None):
+    clear_jobs_table()
     parser = argparse.ArgumentParser(description="Naukri crawler (standalone).")
     parser.add_argument("--keyword", default="java developer, spring boot", help="Job keyword")
     parser.add_argument("--location", default="india", help="Location")
@@ -279,7 +288,11 @@ if __name__ == "__main__":
     parser.add_argument("--job-age", type=int, default=15, help="Job posting age (days)")
     parser.add_argument("--limit", type=int, default=50, help="Number of jobs to fetch")
     parser.add_argument("--headless", action="store_true", help="Run browser headless")
-    args = parser.parse_args()
+
+    if arg_list is not None:
+        args = parser.parse_args(arg_list)
+    else:
+        args = parser.parse_args()
 
     results = crawl_naukri(
         keyword=args.keyword,
@@ -291,5 +304,7 @@ if __name__ == "__main__":
         headless=args.headless
     )
 
-    for r in results[:5]:
-        print(r)
+    return results
+
+if __name__ == "__main__":
+    main()

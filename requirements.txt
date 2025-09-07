@@ -1,0 +1,8 @@
+flask
+reportlab
+sentence-transformers
+torch
+beautifulsoup4
+requests
+lxml
+playwright
